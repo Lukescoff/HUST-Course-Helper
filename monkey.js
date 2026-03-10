@@ -2,14 +2,18 @@
 // @name         华科课程平台刷课助手
 // @namespace    http://tampermonkey.net/
 // @version      0.0.1
-// @description  华科课程平台刷课助手
+// @description  华中科技大学课程平台刷课助手，点击右上角完成视频，可以直接完成单个视频
 // @author       DavLiu
+// @license      MIT
 // @include        *://smartcourse.hust.edu.cn/*
 // @include        *://smartcourse.hust.edu.cn/mooc-smartcourse/*
 // @include        *://smartcourse.hust.edu.cn/mooc-smartcourse/mycourse/studentstudy*
+// @match          *://smartcourse.hust.edu.cn/mycourse/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=hust.edu.cn
 // @grant        none
 // @run-at       document-idle
+// @downloadURL https://update.greasyfork.org/scripts/522785/%E5%8D%8E%E7%A7%91%E8%AF%BE%E7%A8%8B%E5%B9%B3%E5%8F%B0%E5%88%B7%E8%AF%BE%E5%8A%A9%E6%89%8B.user.js
+// @updateURL https://update.greasyfork.org/scripts/522785/%E5%8D%8E%E7%A7%91%E8%AF%BE%E7%A8%8B%E5%B9%B3%E5%8F%B0%E5%88%B7%E8%AF%BE%E5%8A%A9%E6%89%8B.meta.js
 // ==/UserScript==
 
 (function () {
@@ -31,7 +35,7 @@
         button.style.cssText = `
             position: fixed;
             top: 20px;
-            right: 20px;
+            right: 50px;
             z-index: 99999;
             padding: 10px 20px;
             background: #4CAF50;
@@ -42,8 +46,54 @@
             font-size: 14px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         `;
-        button.onclick = hackVideoPlayer;
+        button.onclick = autoHackAction;
         document.body.appendChild(button);
+    }
+
+    // 从当前URL解析参数
+    function parseCurrentUrl() {
+        const url = new URL(window.location.href);
+        const params = {
+            chapterId: parseInt(url.searchParams.get('chapterId')) || null,
+            courseId: url.searchParams.get('courseId'),
+            clazzid: url.searchParams.get('clazzid'),
+            cpi: url.searchParams.get('cpi'),
+            enc: url.searchParams.get('enc'),
+            mooc2: url.searchParams.get('mooc2') || '0',
+            openc: url.searchParams.get('openc'),
+            // 保留其他可能的参数
+            ...Object.fromEntries(url.searchParams)
+        };
+        return params;
+    };
+
+    // 直接调用平台内置函数（对于研究生心理健康的课程id范围 463755 ～ 463904）
+    function goToNextChapter() {
+        let params = parseCurrentUrl()
+        let next_chapterId = (parseInt(params.chapterId) + 0).toString();
+        console.log('chapterId:', params.chapterId, '类型:', typeof params.chapterId);
+        try {
+            // 华科平台的内置跳转函数
+            if (typeof PCount !== 'undefined' && PCount.next) {
+                // 参数需要从当前页面获取，或观察已有调用
+                PCount.next('1', next_chapterId, params.courseId, params.clazzid, '');
+                console.log('✅ 通过 PCount.next() 切换到下一节');
+                return true;
+            }
+        } catch (e) {
+            console.error('PCount.next 调用失败:', e);
+        }
+        return false;
+    }
+
+    // 修改并跳转
+    function autoHackAction() {
+        hackVideoPlayer();
+        setTimeout(function() {
+            hackVideoPlayer();
+            // 如果需要再延迟跳转
+            setTimeout(goToNextChapter, 500);
+        }, 1000);
     }
 
     // 修改视频播放器状态
@@ -88,7 +138,7 @@
                             try {
                                 // 自动点击播放按钮
                                 player.play();
-                                
+
                                 // 修改播放器状态
                                 player.currentTime(player.duration());
 
