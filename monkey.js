@@ -19,7 +19,7 @@
 (function () {
     'use strict';
 
-    // 防止脚本在各种隐藏中重复运行报错
+    // 防止脚本在各种隐藏 iframe 中重复运行报错
     if (window.top !== window.self) {
         return;
     }
